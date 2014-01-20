@@ -19,16 +19,22 @@ module MonkhorstPack
 
   implicit none
 
+  ! container for a Monkhorst-Pack mesh of integer points, pre- and post-symmetrisation
   type Mesh
     type(Latvec), allocatable :: points(:)
+    ! scaling factor, for when this will become a list of k-points
     real                      :: factor
+    ! the degeneracy (or repeatedness) of each point
     integer,      allocatable :: degen(:)
   contains
     procedure :: Generate => Generate_mesh
     procedure :: Symmetrise => Symmetrise_mesh
   end type Mesh
 
+  ! container for a group of symmetry operations, in matrix representation
+  ! TODO: work out whether this type (and instances of it) can be private to this module
   type Symmetry
+    ! `iterations` is the number of new points can be gained from a specific symmetry operation
     integer :: matrix(3,3), iterations
   end type Symmetry
 
@@ -52,9 +58,14 @@ module MonkhorstPack
     procedure :: Apply_symmetry
   end interface operator(*)
 
+  private
+  public :: Mesh, Symmetry, fcc_symmetries, operator(*)
+
 contains
 
   pure function Apply_symmetry(left, right) result(transformed)
+    ! "Applies" a symmetry operation to a point, using matrix multiplication.
+    ! overloads the (*) operator
     type(Symmetry), intent(in) :: left
     type(Latvec),   intent(in) :: right
     type(Latvec)               :: transformed
@@ -64,6 +75,7 @@ contains
   end function Apply_symmetry
 
   pure function U(r, q)
+    ! Fundamental mesh-generating relation, as in Monkhorst and Pack's paper.
     integer, intent(in) :: r, q
     integer             :: U
 
@@ -72,7 +84,9 @@ contains
   end function U
 
   subroutine Generate_mesh(this, q)
-    integer,     intent(in)             :: q ! literature symbol for mesh "width"
+    ! Initialises and populates an even mesh of integer points, using the mesh "width" q.
+    ! TODO: account for different crystal types (i.e. different RLVs)
+    integer,     intent(in)             :: q
     class(Mesh), intent(out)            :: this
     integer,                  parameter :: RLVs(3,3) = reshape([-1,1,1, 1,-1,1, 1,1,-1],[3,3])
     integer                             :: i, j, k
@@ -88,14 +102,13 @@ contains
   end subroutine Generate_mesh
 
   subroutine Symmetrise_mesh(this, symmetries)
+    ! Applies crystal symmetry operations to an unsymmetrised mesh, leaving only a symmetry-reduced subset.
     class(Mesh),    intent(in out)              :: this
     type(Symmetry), intent(in)                  :: symmetries(:)
     integer                                     :: i, j, k, l
     type(Latvec)                                :: current
     integer,                        allocatable :: indices(:)
-    real :: time(2)
 
-    call cpu_time(time(1))
     ! keep track of the indices (w.r.t. `this%points`) of all the symmetrised points
     allocate(indices(0))
     ! check each meshpoint against all earlier points with degen > 0
@@ -130,8 +143,6 @@ contains
     ! saves having to perform expensive PACK comparisons and so on
     this%points = this%points(indices)
     this%degen = this%degen(indices)
-    call cpu_time(time(2))
-    print *, time(2) - time(1)
 
   end subroutine Symmetrise_mesh
 
