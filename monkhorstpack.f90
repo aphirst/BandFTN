@@ -53,7 +53,17 @@ module MonkhorstPack
        Symmetry(reshape([0,-1,0, -1,0,0, 0,0,-1],[3,3]),1), &
        Symmetry(reshape([0,0,-1, 0,-1,0, -1,0,0],[3,3]),1), &
        Symmetry(reshape([-1,0,0, 0,0,-1, 0,-1,0],[3,3]),1) /)
-  
+
+  ! container for Density of States data
+  ! would benefit from being a parameterised type
+  type DOS
+    real,     allocatable :: energies(:), densities(:)
+    integer,  allocatable :: population(:)
+    real                  :: dE
+  contains
+    procedure :: Generate => Generate_DOS
+  end type DOS
+
   interface operator (*)
     procedure :: Apply_symmetry
   end interface operator(*)
@@ -69,9 +79,9 @@ contains
     type(Symmetry), intent(in) :: left
     type(Latvec),   intent(in) :: right
     type(Latvec)               :: transformed
-    
+
     transformed = Latvec( matmul(left%matrix , right%hkl) )
-  
+
   end function Apply_symmetry
 
   pure function U(r, q)
@@ -91,10 +101,11 @@ contains
     integer,                  parameter :: RLVs(3,3) = reshape([-1,1,1, 1,-1,1, 1,1,-1],[3,3])
     integer                             :: i, j, k
 
-    this%factor = 1 / real(2 * q)
+    this%factor = 1.0 / real(2 * q)
     allocate(this%points(q**3))
     allocate(this%degen(q**3))
     do concurrent ( i = 1:q, j = 1:q, k = 1:q )
+      ! TODO: determine whether it's worth pre-computing the possible outputs of `U`, or working out an alternate vector approach
       this%points(i + q*(j-1) + q*q*(k-1)) = Latvec( U(i,q)*RLVs(:,1) + U(j,q)*RLVs(:,2) + U(k,q)*RLVs(:,3) )
     end do
     this%degen = 0
@@ -145,5 +156,16 @@ contains
     this%degen = this%degen(indices)
 
   end subroutine Symmetrise_mesh
+
+  subroutine Generate_DOS(this)
+    class(DOS), intent(in out) :: this
+    ! convert integer point-mesh into list of k-points
+    ! compute all eigenenergies at all k-points
+    ! sort all eigenenergies
+    ! use an E "step" (or its inverse, an E "resolution"); hardcoded, computed, or an argument
+    ! allocate arrays
+    ! use count() to determine the population <= each E (can use array sectioning and previous counted values for efficiency)
+    ! use definition of derivative to compute a "density" for each step
+  end subroutine Generate_DOS
 
 end module MonkhorstPack
