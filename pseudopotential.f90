@@ -38,6 +38,14 @@ module Pseudopotential
     ! might be easier to then spread into energy-bands now that eigenvalues are inside here
   end type Potmat
 
+  ! abstract container for an eigen-calculation
+  ! allows the bruntwork of "get all eigenvalues for a range of k values" to be separated AND type-bound
+  type Eigencalc
+    real, allocatable :: raw_data(:,:)
+  contains
+    procedure :: Compute => Compute_energies
+  end type
+
   ! we want to be able to add a matrix to a matrix-diagonal
   interface operator (+)
     procedure :: Matrix_diagonal_addition
@@ -57,7 +65,7 @@ module Pseudopotential
   end interface
 
   private
-  public :: Wavevec, Potmat, operator(+)
+  public :: Wavevec, Potmat, Eigencalc, operator(+)
 
 contains
 
@@ -130,5 +138,30 @@ contains
     call CHEEV('N', 'U', N, (this%M + this%diag), N, this%EVs, WORK, size(WORK), RWORK, INFO)
 
   end subroutine Update_potmat
+
+  subroutine Compute_energies(this, kpoints, this_material, magnitude)
+    ! Generates and populates a raw data array of eigenenergies, each column being the results for one k-point.
+    class(Eigencalc), intent(in out) :: this
+    type(Wavevec),    intent(in)     :: kpoints(:)
+    type(Material),   intent(in)     :: this_material
+    integer,          intent(in)     :: magnitude
+    type(Potmat)                     :: V
+    integer                          :: i
+
+    ! initialise the potential / form-factor matrix
+    call V%Create(this_material, magnitude)
+    allocate(this%raw_data( size(V%basis), size(kpoints) ))
+    ! compute eigenenergies for each value of k
+    ! this outer loop is PROBABLY parallelisable, depending on the thread-safety of the LAPACK implementation
+    ! though if system LAPACK is already multithreaded, there's probably little point setting CONCURRENT here
+    do i = 1, size(kpoints)
+      call V%Update(kpoints(i))
+      this%raw_data(:,i) = V%EVs
+    end do
+    ! renormalise the energy scale based on the number of valence electrons (i.e. number of valence bands)
+    ! the top of the last (highest) filled band should be the zero point
+    this%raw_data = this%raw_data - maxval( this%raw_data(this_material%electrons,:) )
+
+  end subroutine Compute_energies
 
 end module Pseudopotential

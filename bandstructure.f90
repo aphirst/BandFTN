@@ -48,10 +48,9 @@ module Bandstructure
   end type Bandgap
 
   ! container for an entire bandstructure, including relevant high-symmetry points
-  type Bandstruc
+  type, extends(Eigencalc) :: Bandstruc
     type(Highsym),    allocatable :: sympoints(:)
     integer                       :: num_kpoints
-    real,             allocatable :: raw_data(:,:)
     type(Energyband), allocatable :: bands(:)
   contains
     procedure :: Generate => Generate_bandstructure
@@ -104,44 +103,19 @@ contains
 
   end function Bands_intersect
 
-  subroutine Compute_energies(kpoints, this_material, magnitude, raw_data)
-    ! Generates and populates a raw data array of eigenenergies, each column being the results for one k-point
-    type(Wavevec),  intent(in)               :: kpoints(:)
-    type(Material), intent(in)               :: this_material
-    integer,        intent(in)               :: magnitude
-    real,           intent(out), allocatable :: raw_data(:,:)
-    type(Potmat)                             :: V
-    integer                                  :: i
-
-    ! initialise the potential / form-factor matrix
-    call V%Create(this_material, magnitude)
-    allocate(raw_data( size(V%basis), size(V%basis) ))
-    ! compute eigenenergies for each value of k
-    ! this outer loop is PROBABLY parallelisable, depending on the thread-safety of the LAPACK implementation
-    ! though if system LAPACK is already multithreaded, there's probably little point setting CONCURRENT here
-    do i = 1, size(kpoints)
-      call V%Update(kpoints(i))
-      raw_data(:,i) = V%EVs
-    end do
-    ! renormalise the energy scale based on the number of valence electrons (i.e. number of valence bands)
-    ! the top of the last (highest) filled band should be the zero point
-    raw_data = raw_data - maxval( raw_data(this_material%electrons,:) )
-
-  end subroutine Compute_energies
-
   subroutine Generate_bandstructure(this, this_material, magnitude, resolution)
     ! Handles the computation of the bandstructure of a given material, using RLVs upto a certain square-magnitude.
     class(Bandstruc), intent(in out),              target :: this
     type(Material),   intent(in)                          :: this_material
     integer,          intent(in)                          :: magnitude, resolution
     type(Wavevec),                    allocatable         :: kpoints(:)
-    integer                                               :: i, j
+    integer                                               :: i
 
     ! initialise the full basis of wavevectors from the high-symmetry points
     kpoints = Expand_highsym(this%sympoints, resolution)
     this%num_kpoints = size(kpoints)
     ! fill `raw_data` with eigenenergies per k-point in each column
-    call Compute_energies(kpoints, this_material, magnitude, this%raw_data)
+    call this%Compute(kpoints, this_material, magnitude)
     ! allocate as many bands as we care about
     if (allocated(this%bands)) deallocate(this%bands)
     allocate(this%bands( size(this%raw_data,1) ))

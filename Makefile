@@ -30,16 +30,16 @@ bandstructure.o \
 lattice.o \
 monkhorstpack.o
 
-SRC_DIR_f90d1 = 
+SRC_DIR_f90d1 =
 OBJS_DIR = /tmp/BandFTN/obj/
 EXE_DIR = /tmp/BandFTN/
 
 EXE = BandFTN
 FC = gfortran
-IDIR = 
-CFLAGS = -O2 -s -march=native -std=f2008 -J$(OBJS_DIR) $(IDIR)
-LFLAGS = -llapack 
-LIBS = 
+IDIR =
+CFLAGS = -O2 -s -march=native -std=f2008 -Wall -Wextra -J$(OBJS_DIR) $(IDIR)
+LFLAGS = -llapack
+LIBS =
 
 VPATH = $(SRC_DIR_f90d1):$(OBJS_DIR)
 OBJS = $(addprefix $(OBJS_DIR), $(OBJS_f90d1))
@@ -61,6 +61,7 @@ clean :
 # Dependencies of files
 main.o: \
     main.f90 \
+    lattice.o \
     bandstructure.o \
     monkhorstpack.o
 constants.o: \
@@ -78,5 +79,6 @@ lattice.o: \
     constants.o
 monkhorstpack.o: \
     monkhorstpack.f90 \
-    lattice.o
+    lattice.o \
+    pseudopotential.o
 

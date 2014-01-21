@@ -74,9 +74,8 @@ contains
 
   elemental subroutine Swap(this,i,j)
     ! This really shouldn't need much explanation.
-    class(Latvec), intent(in out), target  :: this
-    integer,       intent(in)              :: i, j
-    integer,                       pointer :: hkl(:)
+    class(Latvec), intent(in out) :: this
+    integer,       intent(in)     :: i, j
 
     ! array-valued index notation
     this%hkl([i,j]) = this%hkl([j,i])

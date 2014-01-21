@@ -16,6 +16,7 @@
 
 module MonkhorstPack
   use Lattice
+  use Pseudopotential
 
   implicit none
 
@@ -56,20 +57,20 @@ module MonkhorstPack
 
   ! container for Density of States data
   ! would benefit from being a parameterised type
-  type DOS
+  type, extends(Eigencalc) :: DoS
     real,     allocatable :: energies(:), densities(:)
     integer,  allocatable :: population(:)
     real                  :: dE
   contains
-    procedure :: Generate => Generate_DOS
-  end type DOS
+    procedure :: Generate => Generate_DoS
+  end type DoS
 
   interface operator (*)
     procedure :: Apply_symmetry
   end interface operator(*)
 
   private
-  public :: Mesh, Symmetry, fcc_symmetries, operator(*)
+  public :: Mesh, Symmetry, fcc_symmetries, DoS, operator(*)
 
 contains
 
@@ -157,8 +158,8 @@ contains
 
   end subroutine Symmetrise_mesh
 
-  subroutine Generate_DOS(this)
-    class(DOS), intent(in out) :: this
+  subroutine Generate_DoS(this)
+    class(DoS), intent(in out) :: this
     ! convert integer point-mesh into list of k-points
     ! compute all eigenenergies at all k-points
     ! sort all eigenenergies
@@ -166,6 +167,6 @@ contains
     ! allocate arrays
     ! use count() to determine the population <= each E (can use array sectioning and previous counted values for efficiency)
     ! use definition of derivative to compute a "density" for each step
-  end subroutine Generate_DOS
+  end subroutine Generate_DoS
 
 end module MonkhorstPack
