@@ -159,6 +159,7 @@ contains
   end subroutine Symmetrise_mesh
 
   pure subroutine Generate_DoS(this, this_material, magnitude, q, resolution)
+    ! Handles the calculation of the density of states for a given material, using a meshsize `q`, by coarse-graining.
     class(DoS),     intent(in out)              :: this
     type(Material), intent(in)                  :: this_material
     integer,        intent(in)                  :: magnitude, q, resolution

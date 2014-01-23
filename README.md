@@ -13,7 +13,7 @@ How to Use
 
 Currently there is only support for GNU/Linux, and also required are an up-to-date version of gfortran, a LAPACK implementation (I personally recommend the multithreaded [OpenBLAS](http://www.openblas.net/)), and gnuplot.
 
-Edit the Makefile to set sane build and object directories, run ```make```, and if compilation is successful the program can simply be run with ```./BandFTN```. Note that for the time being, the parameters of the calculation are hard-coded; rather than document their usage I shall instead prioritise implementing the ability to specify them at runtime.
+Edit the Makefile to set sane build and object directories (defaults to inside ```/tmp```), run ```make```, and if compilation is successful the program can simply be run with ```./BandFTN```. Note that for the time being, the parameters of the calculation are hard-coded; rather than document their usage I shall instead prioritise implementing the ability to specify them at runtime.
 
 The generated ```.gnu``` file is a gnuplot command file; running gnuplot and ```load```ing it should display the desired bandstructure graph, the raw data for which is contained in an accompanying generated ```.dat``` file.
 
@@ -24,6 +24,7 @@ Current Features
 * Generates an EPM bandstructure for FCC crystals along lines of high symmetry
 * Anti-symmetric structure/form-factors are also taken into account for multi-element crystals, e.g. GaAs
 * Zeros energy axis at valence band maximum, in accordance with convention
+* Irreducible Brillouin Zone k-point mesh generation, and density of states calculations
 * Outputs a data file and a Gnuplot command file
 
 
@@ -31,11 +32,10 @@ Planned Features
 ----------------
 
 * Determination & evaluation of band gaps
+* *Plotting* of density of states data
 * Material/crystal property input/job files
 * Additional cubic lattice types
-* Irreducible Brillouin Zone k-point mesh generation (in-progress)
-* Charge density and density of states calculations
-* Sane default build/output directories
+* Charge density calculations
 * Support for other operating systems and compilers
 
 Informal References

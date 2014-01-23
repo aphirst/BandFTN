@@ -170,10 +170,13 @@ contains
   end subroutine Compute_energies
 
   elemental function Latvec_factor_product(left, right) result(prod)
+    ! Multiplies a real scalar by an integer mesh-point (of type Latvec), returning a real k-point (of type Wavevec).
     real,         intent(in) :: left
     type(Latvec), intent(in) :: right
     type(Wavevec)            :: prod
+
     prod = Wavevec( left * right%hkl )
+
   end function Latvec_factor_product
 
 end module Pseudopotential
