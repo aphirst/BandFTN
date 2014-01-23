@@ -59,7 +59,7 @@ module MonkhorstPack
   ! would benefit from being a parameterised type
   type, extends(Eigencalc) :: DoS
     real,     allocatable :: energies(:), densities(:)
-    integer,  allocatable :: population(:)
+    integer,  allocatable :: populations(:)
     real                  :: dE
   contains
     procedure :: Generate => Generate_DoS
@@ -67,7 +67,7 @@ module MonkhorstPack
 
   interface operator (*)
     procedure :: Apply_symmetry
-  end interface operator(*)
+  end interface operator (*)
 
   private
   public :: Mesh, Symmetry, fcc_symmetries, DoS, operator(*)
@@ -94,7 +94,7 @@ contains
 
   end function U
 
-  subroutine Generate_mesh(this, q)
+  pure subroutine Generate_mesh(this, q)
     ! Initialises and populates an even mesh of integer points, using the mesh "width" q.
     ! TODO: account for different crystal types (i.e. different RLVs)
     integer,     intent(in)             :: q
@@ -113,7 +113,7 @@ contains
 
   end subroutine Generate_mesh
 
-  subroutine Symmetrise_mesh(this, symmetries)
+  pure subroutine Symmetrise_mesh(this, symmetries)
     ! Applies crystal symmetry operations to an unsymmetrised mesh, leaving only a symmetry-reduced subset.
     class(Mesh),    intent(in out)              :: this
     type(Symmetry), intent(in)                  :: symmetries(:)
@@ -158,15 +158,52 @@ contains
 
   end subroutine Symmetrise_mesh
 
-  subroutine Generate_DoS(this)
-    class(DoS), intent(in out) :: this
+  pure subroutine Generate_DoS(this, this_material, magnitude, q, resolution)
+    class(DoS),     intent(in out)              :: this
+    type(Material), intent(in)                  :: this_material
+    integer,        intent(in)                  :: magnitude, q, resolution
+    type(Mesh)                                  :: this_mesh
+    type(Wavevec),                  allocatable :: kpoints(:)
+    integer                                     :: i, j, my_index
+    real,                           parameter   :: Emin = -6.0, Emax = 6.0
+
+    ! create integer point-mesh
+    call this_mesh%Generate(q)
+    call this_mesh%Symmetrise(fcc_symmetries)
     ! convert integer point-mesh into list of k-points
-    ! compute all eigenenergies at all k-points
-    ! sort all eigenenergies
-    ! use an E "step" (or its inverse, an E "resolution"); hardcoded, computed, or an argument
+    kpoints = this_mesh%factor * this_mesh%points
+    ! compute all eigenenergies at all k-points, this populates this%raw_data
+    call this%Compute(kpoints, this_material, magnitude)
     ! allocate arrays
-    ! use count() to determine the population <= each E (can use array sectioning and previous counted values for efficiency)
-    ! use definition of derivative to compute a "density" for each step
+    this%populations = [( 0, i = 1,resolution )]
+    allocate(this%densities(resolution))
+    ! `resolution` denotes how many population histogram bins to use, within the region [-6.0eV, 6.0eV]
+    ! `resolution - 1` is a result of CENTERING the either-end bins at Emin/Emax (rather than placing the bin BOUNDARIES there)
+    ! allocate-on-assign
+    this%energies = [( Emin + ( (Emax - Emin)*(i-1)/(resolution - 1) ) , i = 1,resolution )]
+    ! convert `raw_data` into a population histogram
+    ! each set of eigenenergies for a k-point are sorted automatically by LAPACK
+    ! so we do each k-point's data (i.e. each column of `raw_data`) separately
+    ! TODO: parallelise using an additional array dimension, and a SUM()
+    do i = 1, size(this%raw_data,2)
+      ! test all values in the column to see whether the population should be incremented
+      do j = 1, size(this%raw_data,1)
+        my_index = nint( (this%raw_data(j,i) - Emin) * (resolution - 1) / (Emax - Emin) ) + 1
+        if (my_index < 1) then
+          ! only start doing interesting things once we're in the desired range
+          cycle
+        else if (my_index > resolution) then
+          ! once we find one energy above the desired range, the rest will be too
+          exit
+        else
+          ! add the k-point's degeneracy to the energy subrange's population count
+          this%populations(my_index) = this%populations(my_index) + this_mesh%degen(i)
+        end if
+      end do
+    end do
+    ! convert the population count into a density using the total (unsymmetrised!) number of kpoints
+    this%densities = this%populations / real( q**3 )
+
   end subroutine Generate_DoS
 
 end module MonkhorstPack

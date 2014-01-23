@@ -51,6 +51,11 @@ module Pseudopotential
     procedure :: Matrix_diagonal_addition
   end interface operator (+)
 
+  ! we want to be able to multiply a Latvec with a real factor to get a Wavevec
+  interface operator (*)
+   procedure :: Latvec_factor_product
+  end interface operator (*)
+
   ! explicit interface to the hermitian LAPACK routine, just a bit of good practice
   interface
     pure subroutine CHEEV(JOBZ, UPLO, N, A, LDA, W, WORK, LWORK, RWORK, INFO)
@@ -65,7 +70,7 @@ module Pseudopotential
   end interface
 
   private
-  public :: Wavevec, Potmat, Eigencalc, operator(+)
+  public :: Wavevec, Potmat, Eigencalc, operator(+), operator(*)
 
 contains
 
@@ -139,7 +144,7 @@ contains
 
   end subroutine Update_potmat
 
-  subroutine Compute_energies(this, kpoints, this_material, magnitude)
+  pure subroutine Compute_energies(this, kpoints, this_material, magnitude)
     ! Generates and populates a raw data array of eigenenergies, each column being the results for one k-point.
     class(Eigencalc), intent(in out) :: this
     type(Wavevec),    intent(in)     :: kpoints(:)
@@ -163,5 +168,12 @@ contains
     this%raw_data = this%raw_data - maxval( this%raw_data(this_material%electrons,:) )
 
   end subroutine Compute_energies
+
+  elemental function Latvec_factor_product(left, right) result(prod)
+    real,         intent(in) :: left
+    type(Latvec), intent(in) :: right
+    type(Wavevec)            :: prod
+    prod = Wavevec( left * right%hkl )
+  end function Latvec_factor_product
 
 end module Pseudopotential
