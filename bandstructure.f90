@@ -77,7 +77,6 @@ contains
       widths(i) = floor( resolution * norm2(steps(i)%k) )
       sympoints(i)%k_index = sympoints(i-1)%k_index + widths(i)
     end do
-    if (allocated(kpoints)) deallocate(kpoints)
     allocate(kpoints( sum(widths) ))
     do concurrent ( i = 2:size(sympoints) )
       ! normalise the step-sizes
@@ -115,6 +114,7 @@ contains
     kpoints = Expand_highsym(this%sympoints, resolution)
     this%num_kpoints = size(kpoints)
     ! fill `raw_data` with eigenenergies per k-point in each column
+    if (allocated(this%raw_data)) deallocate(this%raw_data)
     call this%Compute(kpoints, this_material, magnitude)
     ! allocate as many bands as we care about
     if (allocated(this%bands)) deallocate(this%bands)
@@ -153,7 +153,7 @@ contains
     write(10,'(a)') 'set ylabel "E [eV]"'
     write(10,'(a,i0,a)') 'set xrange [0:', this%num_kpoints,']'
     ! TODO: dynamic upper-bound for the yrange
-    write(10,'(a)') 'set yrange [-6:6]'
+    write(10,'(a,f5.1,a,f5.1,a)') 'set yrange [',this%Emin,':',this%Emax,']'
     ! set high-symmetry-points as xtics
     write(10,'(a)',advance='no') 'set xtics ('
     do i = 1,size(this%sympoints)

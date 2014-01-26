@@ -55,22 +55,12 @@ module MonkhorstPack
        Symmetry(reshape([0,0,-1, 0,-1,0, -1,0,0],[3,3]),1), &
        Symmetry(reshape([-1,0,0, 0,0,-1, 0,-1,0],[3,3]),1) /)
 
-  ! container for Density of States data
-  ! would benefit from being a parameterised type
-  type, extends(Eigencalc) :: DoS
-    real,     allocatable :: energies(:), densities(:)
-    integer,  allocatable :: populations(:)
-    real                  :: dE
-  contains
-    procedure :: Generate => Generate_DoS
-  end type DoS
-
   interface operator (*)
     procedure :: Apply_symmetry
   end interface operator (*)
 
   private
-  public :: Mesh, Symmetry, fcc_symmetries, DoS, operator(*)
+  public :: Mesh, Symmetry, fcc_symmetries, operator(*)
 
 contains
 
@@ -109,7 +99,7 @@ contains
       ! TODO: determine whether it's worth pre-computing the possible outputs of `U`, or working out an alternate vector approach
       this%points(i + q*(j-1) + q*q*(k-1)) = Latvec( U(i,q)*RLVs(:,1) + U(j,q)*RLVs(:,2) + U(k,q)*RLVs(:,3) )
     end do
-    this%degen = 0
+    this%degen(:) = 0
 
   end subroutine Generate_mesh
 
@@ -157,54 +147,5 @@ contains
     this%degen = this%degen(indices)
 
   end subroutine Symmetrise_mesh
-
-  pure subroutine Generate_DoS(this, this_material, magnitude, q, resolution)
-    ! Handles the calculation of the density of states for a given material, using a meshsize `q`, by coarse-graining.
-    class(DoS),     intent(in out)              :: this
-    type(Material), intent(in)                  :: this_material
-    integer,        intent(in)                  :: magnitude, q, resolution
-    type(Mesh)                                  :: this_mesh
-    type(Wavevec),                  allocatable :: kpoints(:)
-    integer                                     :: i, j, my_index
-    real,                           parameter   :: Emin = -6.0, Emax = 6.0
-
-    ! create integer point-mesh
-    call this_mesh%Generate(q)
-    call this_mesh%Symmetrise(fcc_symmetries)
-    ! convert integer point-mesh into list of k-points
-    kpoints = this_mesh%factor * this_mesh%points
-    ! compute all eigenenergies at all k-points, this populates this%raw_data
-    call this%Compute(kpoints, this_material, magnitude)
-    ! allocate arrays
-    this%populations = [( 0, i = 1,resolution )]
-    allocate(this%densities(resolution))
-    ! `resolution` denotes how many population histogram bins to use, within the region [-6.0eV, 6.0eV]
-    ! `resolution - 1` is a result of CENTERING the either-end bins at Emin/Emax (rather than placing the bin BOUNDARIES there)
-    ! allocate-on-assign
-    this%energies = [( Emin + ( (Emax - Emin)*(i-1)/(resolution - 1) ) , i = 1,resolution )]
-    ! convert `raw_data` into a population histogram
-    ! each set of eigenenergies for a k-point are sorted automatically by LAPACK
-    ! so we do each k-point's data (i.e. each column of `raw_data`) separately
-    ! TODO: parallelise using an additional array dimension, and a SUM()
-    do i = 1, size(this%raw_data,2)
-      ! test all values in the column to see whether the population should be incremented
-      do j = 1, size(this%raw_data,1)
-        my_index = nint( (this%raw_data(j,i) - Emin) * (resolution - 1) / (Emax - Emin) ) + 1
-        if (my_index < 1) then
-          ! only start doing interesting things once we're in the desired range
-          cycle
-        else if (my_index > resolution) then
-          ! once we find one energy above the desired range, the rest will be too
-          exit
-        else
-          ! add the k-point's degeneracy to the energy subrange's population count
-          this%populations(my_index) = this%populations(my_index) + this_mesh%degen(i)
-        end if
-      end do
-    end do
-    ! convert the population count into a density using the total (unsymmetrised!) number of kpoints
-    this%densities = this%populations / real( q**3 )
-
-  end subroutine Generate_DoS
 
 end module MonkhorstPack

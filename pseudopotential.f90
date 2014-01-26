@@ -42,6 +42,7 @@ module Pseudopotential
   ! allows the bruntwork of "get all eigenvalues for a range of k values" to be separated AND type-bound
   type Eigencalc
     real, allocatable :: raw_data(:,:)
+    real              :: Emin, Emax
   contains
     procedure :: Compute => Compute_energies
   end type
@@ -133,6 +134,7 @@ contains
     real                          :: RWORK(3*size(this%EVs) - 2)
     complex                       :: WORK(2*size(this%EVs) - 1)
 
+    ! update all kinetic energy terms, across the matrix's diagonal
     do concurrent ( i = 1:size(this%diag) )
       this%diag(i) = (hc/this%A)**2 * sum( (k%k + real(this%basis(i)%hkl))**2 ) / (2.0 * E_e)
     end do
@@ -171,9 +173,9 @@ contains
 
   elemental function Latvec_factor_product(left, right) result(prod)
     ! Multiplies a real scalar by an integer mesh-point (of type Latvec), returning a real k-point (of type Wavevec).
-    real,         intent(in) :: left
-    type(Latvec), intent(in) :: right
-    type(Wavevec)            :: prod
+    real,          intent(in) :: left
+    type(Latvec),  intent(in) :: right
+    type(Wavevec)             :: prod
 
     prod = Wavevec( left * right%hkl )
 
