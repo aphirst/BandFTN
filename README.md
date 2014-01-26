@@ -24,7 +24,8 @@ Current Features
 * Generates an EPM bandstructure for FCC crystals along lines of high symmetry
 * Anti-symmetric structure/form-factors are also taken into account for multi-element crystals, e.g. GaAs
 * Zeros energy axis at valence band maximum, in accordance with convention
-* Irreducible Brillouin Zone k-point mesh generation, and density of states calculations
+* Irreducible Brillouin Zone k-point mesh generation (Monkhorst-Pack)
+* Density of states calculations using Gaussian smearing
 * Outputs a data file and a Gnuplot command file
 
 
@@ -32,7 +33,7 @@ Planned Features
 ----------------
 
 * Determination & evaluation of band gaps
-* *Plotting* of density of states data
+* Plotting of density of states data
 * Material/crystal property input/job files
 * Additional cubic lattice types
 * Charge density calculations

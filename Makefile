@@ -20,7 +20,8 @@ constants.f90 \
 pseudopotential.f90 \
 bandstructure.f90 \
 lattice.f90 \
-monkhorstpack.f90
+monkhorstpack.f90 \
+densityofstates.f90
 
 OBJS_f90d1 = \
 main.o \
@@ -28,7 +29,8 @@ constants.o \
 pseudopotential.o \
 bandstructure.o \
 lattice.o \
-monkhorstpack.o
+monkhorstpack.o\
+densityofstates.o
 
 SRC_DIR_f90d1 =
 OBJS_DIR = /tmp/BandFTN/obj/
@@ -37,7 +39,7 @@ EXE_DIR = /tmp/BandFTN/
 EXE = BandFTN
 FC = gfortran
 IDIR =
-CFLAGS = -O2 -s -march=native -std=f2008 -Wall -Wextra -J$(OBJS_DIR) $(IDIR)
+CFLAGS = -O2 -g -march=native -std=f2008 -Wall -Wextra -J$(OBJS_DIR) $(IDIR)
 LFLAGS = -llapack
 LIBS =
 
@@ -63,9 +65,12 @@ main.o: \
     main.f90 \
     lattice.o \
     bandstructure.o \
-    monkhorstpack.o
+    densityofstates.o
 constants.o: \
     constants.f90
+lattice.o: \
+    lattice.f90 \
+    constants.o
 pseudopotential.o: \
     pseudopotential.f90 \
     constants.o \
@@ -74,11 +79,13 @@ bandstructure.o: \
     bandstructure.f90 \
     lattice.o \
     pseudopotential.o
-lattice.o: \
-    lattice.f90 \
-    constants.o
 monkhorstpack.o: \
     monkhorstpack.f90 \
     lattice.o \
     pseudopotential.o
-
+densityofstates.o: \
+    densityofstates.f90 \
+    constants.o \
+    lattice.o \
+    pseudopotential.o \
+    monkhorstpack.o
