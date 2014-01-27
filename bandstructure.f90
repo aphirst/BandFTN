@@ -131,18 +131,13 @@ contains
     class(Bandstruc), intent(in) :: this
     character(*),     intent(in) :: filename
     integer,          intent(in) :: num_bands
-    integer                      :: i, j
+    integer                      :: i
 
     ! create data file
-    open(5, file=trim(filename)//'.dat', status='replace')
+    open(5, file=trim(filename)//'.bnd', status='replace')
     do i = 1, this%num_kpoints
-      write(5,'(i0)',advance='no') i
-      do j = 1, num_bands
-        write(5,'(a,f10.5)',advance='no') ' ', this%bands(j)%E(i)
-        if (j == num_bands) then
-          write(5,'(a)') ''
-        end if
-      end do
+      ! reading `raw_data` directly by column is vastly more efficient than reading awkward strides from `this%bands`
+      write(5,'(i0,*(f10.5))') i, this%raw_data(1:num_bands,i)
     end do
     close(5)
 
@@ -165,15 +160,7 @@ contains
       end if
     end do
     write(10,'(a)') 'set ytics 1'
-    do i = 1,num_bands
-      if (i == 1) then
-        write(10,'(3(a),i0,a)') 'plot "', trim(filename)//'.dat', '" u 1:', i+1, ' w l lw 3,\'
-      else if (i == num_bands) then
-        write(10,'(3(a),i0,a)') '"', trim(filename)//'.dat', '" u 1:', i+1, ' w l lw 3'
-      else
-        write(10,'(3(a),i0,a)') '"', trim(filename)//'.dat', '" u 1:', i+1, ' w l lw 3,\'
-      end if
-    end do
+    write (10,'(a,i0,3(a))') 'plot for [i=2:',num_bands,'] "', trim(filename)//'.bnd" u 1:i w l lw 3'
     close(10)
 
   end subroutine Plot_bandstructure
