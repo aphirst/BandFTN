@@ -160,7 +160,7 @@ contains
       end if
     end do
     write(10,'(a)') 'set ytics 1'
-    write (10,'(a,i0,3(a))') 'plot for [i=2:',num_bands,'] "', trim(filename)//'.bnd" u 1:i w l lw 3'
+    write(10,'(a,i0,3(a))') 'plot for [i=2:',num_bands+1,'] "', trim(filename)//'.bnd" u 1:i w l lw 3'
     close(10)
 
   end subroutine Plot_bandstructure

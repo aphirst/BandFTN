@@ -54,7 +54,7 @@ contains
     real,           intent(in)                  :: dE
     type(Mesh)                                  :: this_mesh
     type(Wavevec),                  allocatable :: kpoints(:)
-    integer                                     :: i, j, upper, lower
+    integer                                     :: i, j, upper, lower, left, right
 
     ! create integer point-mesh
     call this_mesh%Generate(q)
@@ -73,13 +73,14 @@ contains
     do i = 1, size(this%raw_data,2)
       lower = 1; upper = size(this%raw_data,1)
       ! scan through each column to find the range of indices corresponding to the desired energy range
+      ! we include 3 standard deviations extra, so that values just outside the range get smeared in
       do j = 1, size(this%raw_data,1)
-        if ( this%raw_data(j,i) < this%Emin ) then
+        if ( this%raw_data(j,i) < this%Emin - (3*dE) ) then
           ! keep updating the `lower` bound until we're inside the range
           ! we use `j+1` instead of `j` since the current `j` is necessarily still outside the range
           lower = j + 1
           cycle
-        else if ( this%raw_data(j,i) > this%Emax ) then
+        else if ( this%raw_data(j,i) > this%Emax + (3*dE) ) then
           ! once we find one energy above the desired range, the rest will be too
           ! if we're outside the range, the previous value must be the last one inside it (i.e. we use `j-1`)
           upper = j - 1
@@ -87,8 +88,16 @@ contains
         end if
       end do
       ! add the Gaussian-smeared density profiles for this energy range, scaled up by the k-point's degeneracy
-      this%densities(:) = this%densities(:) + this_mesh%degen(i) * &
-                          [( sum(Gaussian(this%energies(j), this%raw_data(lower:upper,i), dE)) , j = 1,resolution )]
+      do j = lower, upper
+        ! 3 standard deviations (i.e. `3*dE`) either side encloses 99.7% of the Gaussian function's area
+        ! `left` and `right` denote the indices of `this%energies` corresponding to either side of this range
+        left = nint( (this%raw_data(j,i) - (3*dE) - this%Emin) * (resolution - 1) / (this%Emax - this%Emin) ) + 1
+        right = nint( (this%raw_data(j,i) + (3*dE) - this%Emin) * (resolution - 1) / (this%Emax - this%Emin) ) + 1
+        ! re-cast these in case they spill outside the plotting region
+        left = max(left,1) ; right = min(right,resolution)
+        this%densities(left:right) = this%densities(left:right) + this_mesh%degen(i) &
+                                     * Gaussian(this%energies(left:right), this%raw_data(j,i), dE)
+      end do
     end do
     ! scale down by the total number of (unsymmetrised!) k-points
     this%densities(:) = this%densities(:) / (q**3)
