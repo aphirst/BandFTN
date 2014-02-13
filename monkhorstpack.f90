@@ -34,8 +34,9 @@ module MonkhorstPack
 
   ! container for a group of symmetry operations, in matrix representation
   ! TODO: work out whether this type (and instances of it) can be private to this module
+  ! TODO: attempt to replace this matrix representation with array-valued index trickery
   type Symmetry
-    ! `iterations` is the number of new points can be gained from a specific symmetry operation
+    ! `iterations` is the number of new points that can be gained from a specific symmetry operation
     integer :: matrix(3,3), iterations
   end type Symmetry
 
@@ -55,9 +56,9 @@ module MonkhorstPack
        Symmetry(reshape([0,0,-1, 0,-1,0, -1,0,0],[3,3]),1), &
        Symmetry(reshape([-1,0,0, 0,0,-1, 0,-1,0],[3,3]),1) /)
 
-  interface operator (*)
+  interface operator (.apply.)
     procedure :: Apply_symmetry
-  end interface operator (*)
+  end interface operator (.apply.)
 
   private
   public :: Mesh, Symmetry, fcc_symmetries, operator(*)
@@ -66,7 +67,6 @@ contains
 
   pure function Apply_symmetry(left, right) result(transformed)
     ! "Applies" a symmetry operation to a point, using matrix multiplication.
-    ! overloads the (*) operator
     type(Symmetry), intent(in) :: left
     type(Latvec),   intent(in) :: right
     type(Latvec)               :: transformed
@@ -96,7 +96,8 @@ contains
     allocate(this%points(q**3))
     allocate(this%degen(q**3))
     do concurrent ( i = 1:q, j = 1:q, k = 1:q )
-      ! TODO: determine whether it's worth pre-computing the possible outputs of `U`, or working out an alternate vector approach
+      ! TODO: pre-compute values of `U(r,q)` for the constant `q`
+      ! TODO: populate a 3d array of points (in an efficient order), then reshape into `this%points`
       this%points(i + q*(j-1) + q*q*(k-1)) = Latvec( U(i,q)*RLVs(:,1) + U(j,q)*RLVs(:,2) + U(k,q)*RLVs(:,3) )
     end do
     this%degen(:) = 0
@@ -121,8 +122,8 @@ contains
         current = this%points(i)
         ! for as many times as they uniquely apply
         do k = 1, symmetries(j)%iterations
-          ! apply symmetry operation to current point, note the operator overload
-          current = symmetries(j) * current
+          ! apply symmetry operation to current point
+          current = symmetries(j) .apply. current
           ! check against every previously symmetrised point
           do l = 1, size(indices)
             ! if match, add 1 to the point it matched, and start checking a whole new point
@@ -130,7 +131,7 @@ contains
               this%degen(indices(l)) = this%degen(indices(l)) + 1
               cycle next_point
             ! also if the inverse matches
-            else if ( Latvec(-1 * current%hkl) == this%points(indices(l)) ) then
+            else if ( (-1) * current == this%points(indices(l)) ) then
               this%degen(indices(l)) = this%degen(indices(l)) + 1
               cycle next_point
             end if

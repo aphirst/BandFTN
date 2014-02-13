@@ -52,9 +52,10 @@ module Pseudopotential
     procedure :: Matrix_diagonal_addition
   end interface operator (+)
 
-  ! we want to be able to multiply a Latvec with a real factor to get a Wavevec
+  ! we want to be able to multiply a Latvec with integer or real factors to get a Latvec or a Wavevec respectively
   interface operator (*)
-   procedure :: Latvec_factor_product
+    procedure :: Latvec_integer_product
+    procedure :: Latvec_real_product
   end interface operator (*)
 
   ! explicit interface to the hermitian LAPACK routine, just a bit of good practice
@@ -171,7 +172,17 @@ contains
 
   end subroutine Compute_energies
 
-  elemental function Latvec_factor_product(left, right) result(prod)
+  elemental function Latvec_integer_product(left, right) result(prod)
+    ! Multiplies an integer scalar by an integer mesh-point (of type Latvec), returning another mesh-point.
+    integer,      intent(in) :: left
+    type(Latvec), intent(in) :: right
+    type(latvec)             :: prod
+
+    prod = Latvec( left * right%hkl )
+
+  end function Latvec_integer_product
+
+  elemental function Latvec_real_product(left, right) result(prod)
     ! Multiplies a real scalar by an integer mesh-point (of type Latvec), returning a real k-point (of type Wavevec).
     real,          intent(in) :: left
     type(Latvec),  intent(in) :: right
@@ -179,6 +190,6 @@ contains
 
     prod = Wavevec( left * right%hkl )
 
-  end function Latvec_factor_product
+  end function Latvec_real_product
 
 end module Pseudopotential
