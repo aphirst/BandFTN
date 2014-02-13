@@ -15,6 +15,7 @@
 ! along with BandFTN. If not, see <http://www.gnu.org/licenses/>.
 
 module MonkhorstPack
+  use Constants
   use Lattice
   use Pseudopotential
 
@@ -40,7 +41,7 @@ module MonkhorstPack
     integer :: matrix(3,3), iterations
   end type Symmetry
 
-  type(Symmetry), parameter :: fcc_symmetries(14) = &
+  type(Symmetry), parameter :: symmetries_fcc(14) = &
     (/ Symmetry(reshape([1,0,0,  0,1,0,  0,0,1], [3,3]),1), & ! identity, => once unique
        Symmetry(reshape([1,0,0,  0,0,1,  0,-1,0],[3,3]),3), & ! rotate about x, y, z by pi/2
        Symmetry(reshape([0,0,-1, 0,1,0,  1,0,0], [3,3]),3), & ! 4-fold => thrice unique
@@ -61,7 +62,7 @@ module MonkhorstPack
   end interface operator (.apply.)
 
   private
-  public :: Mesh, Symmetry, fcc_symmetries, operator(*)
+  public :: Mesh, Symmetry, symmetries_fcc
 
 contains
 

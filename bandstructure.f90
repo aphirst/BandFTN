@@ -15,8 +15,9 @@
 ! along with BandFTN. If not, see <http://www.gnu.org/licenses/>.
 
 module Bandstructure
-  use Pseudopotential
+  use Constants
   use Lattice
+  use Pseudopotential
 
   implicit none
 
@@ -58,7 +59,7 @@ module Bandstructure
   end type Bandstruc
 
   private
-  public :: Highsym, sympoints_fcc, Bandstruc
+  public :: Highsym, Bandstruc
 
 contains
 
@@ -110,8 +111,14 @@ contains
     type(Wavevec),                    allocatable         :: kpoints(:)
     integer                                               :: i
 
+    select case (this_material%crystal_type)
+      case (fcc)
+        this%sympoints = sympoints_fcc
+    end select
     ! initialise the full basis of wavevectors from the high-symmetry points
+    ! also stores the appropriate k-indices of the high-symmetry points into `this%sympoints` as a side-effect
     kpoints = Expand_highsym(this%sympoints, resolution)
+    ! we use this to assist later, with plotting
     this%num_kpoints = size(kpoints)
     ! fill `raw_data` with eigenenergies per k-point in each column
     if (allocated(this%raw_data)) deallocate(this%raw_data)
@@ -142,7 +149,7 @@ contains
     close(5)
 
     ! create Gnuplot file
-    open(10, file=trim(filename)//'.gnu', status='replace')
+    open(10, file=trim(filename)//'.bnd.gnu', status='replace')
     write(10,'(a)') 'unset key'
     write(10,'(a)') 'set grid'
     write(10,'(a)') 'set ylabel "E [eV]"'

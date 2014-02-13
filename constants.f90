@@ -20,6 +20,10 @@ module Constants
   real, parameter :: pi = 4 * atan(1.0)
   real, parameter :: hc = 12398.4193    ! h*c, Planck's constant * speed of light, in (eV)*(Angstroms)
   real, parameter :: E_e = 510998.91013 ! rest mass-energy of an electron, in (eV)
+  ! it seems appropriate to use an enumerator for the different possible crystal types
+  enum, bind(c)
+    enumerator :: fcc, bcc
+  end enum
 
   public
 

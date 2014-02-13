@@ -39,7 +39,7 @@ EXE_DIR = /tmp/BandFTN/
 EXE = BandFTN
 FC = gfortran
 IDIR =
-CFLAGS = -O2 -g -march=native -std=f2008 -Wall -Wextra -J$(OBJS_DIR) $(IDIR)
+CFLAGS = -Ofast -s -march=native -std=f2008 -Wall -Wextra -J$(OBJS_DIR) $(IDIR)
 LFLAGS = -llapack
 LIBS =
 
@@ -77,10 +77,12 @@ pseudopotential.o: \
     lattice.o
 bandstructure.o: \
     bandstructure.f90 \
+    constants.o \
     lattice.o \
     pseudopotential.o
 monkhorstpack.o: \
     monkhorstpack.f90 \
+    constants.o \
     lattice.o \
     pseudopotential.o
 densityofstates.o: \

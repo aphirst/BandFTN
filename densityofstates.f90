@@ -58,7 +58,10 @@ contains
 
     ! create integer point-mesh
     call this_mesh%Generate(q)
-    call this_mesh%Symmetrise(fcc_symmetries)
+    select case (this_material%crystal_type)
+      case (fcc)
+        call this_mesh%Symmetrise(symmetries_fcc)
+    end select
     ! convert integer point-mesh into list of k-points
     kpoints = this_mesh%factor * this_mesh%points
     ! compute all eigenenergies at all k-points, this populates this%raw_data
@@ -100,12 +103,23 @@ contains
       end do
     end do
     ! scale down by the total number of (unsymmetrised!) k-points
+    ! the integral over the valence band's DoS should equal the number of valence states
+    ! make sure to alter this if we introduce extra states (e.g. implementing spin-splitting)
     this%densities(:) = this%densities(:) / (q**3)
 
   end subroutine Generate_DoS
 
-  subroutine Plot_DoS(this)
-    class(DoS), intent(in) :: this
+  subroutine Plot_DoS(this, filename)
+    class(DoS),   intent(in) :: this
+    character(*), intent(in) :: filename
+    integer                  :: i
+
+    ! create data file
+    open(15, file=trim(filename)//'.dos', status='replace')
+    do i = 1, size(this%energies)
+      write(15,*) this%energies(i), this%densities(i)
+    end do
+
   end subroutine Plot_DoS
 
 end module DensityofStates

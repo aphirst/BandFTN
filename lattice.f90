@@ -36,7 +36,7 @@ module Lattice
   ! container for pseudopotential Form-Factors
   type Material
     character(4) :: name
-    character(3) :: crystal_type
+    integer      :: crystal_type
     ! # of valence electrons; |g''|^2
     integer      :: electrons, gpp_sq(4) = [3,4,8,11]
     ! V(|g''|) symmetric and antisymmetric; lattice constant in Angstroms
@@ -48,13 +48,13 @@ module Lattice
   ! defitions of commonly-used materials
   ! TODO: make this work more like a database
   type(Material), parameter :: materials(7) = &
-    (/ Material('Ge',   'FCC', 4, [3,4,8,11], [-3.238,0.0,0.0517,0.925], [0.0,0.0,0.0,0.0],       5.65), &
-       Material('Si',   'FCC', 4, [3,4,8,11], [-3.048,0.0,0.748,0.98],   [0.0,0.0,0.0,0.0],       5.43), &
-       Material('GaAs', 'FCC', 4, [3,4,8,11], [-3.13,0.0,0.136,0.748],   [0.952,0.68,0.0,0.136],  5.64), &
-       Material('InP',  'FCC', 4, [3,4,8,11], [-3.606,0.0,0.136,0.816],  [0.952,0.68,0.0,0.136],  5.86), &
-       Material('AlAs', 'FCC', 4, [3,4,8,11], [-2.99,0.0,0.585,0.816],   [0.177,0.748,0.0,0.272], 5.66), &
-       Material('InAs', 'FCC', 4, [3,4,8,11], [-2.99,0.0,0.0,0.68],      [1.09,0.68,0.0,0.408],   6.04), &
-       Material('GaP',  'FCC', 4, [3,4,8,11], [-2.99,0.0,0.408,0.952],   [1.63,0.952,0.0,0.272],  5.44) /)
+    (/ Material('Ge',   fcc, 4, [3,4,8,11], [-3.238,0.0,0.0517,0.925], [0.0,0.0,0.0,0.0],       5.65), &
+       Material('Si',   fcc, 4, [3,4,8,11], [-3.048,0.0,0.748,0.98],   [0.0,0.0,0.0,0.0],       5.43), &
+       Material('GaAs', fcc, 4, [3,4,8,11], [-3.13,0.0,0.136,0.748],   [0.952,0.68,0.0,0.136],  5.64), &
+       Material('InP',  fcc, 4, [3,4,8,11], [-3.606,0.0,0.136,0.816],  [0.952,0.68,0.0,0.136],  5.86), &
+       Material('AlAs', fcc, 4, [3,4,8,11], [-2.99,0.0,0.585,0.816],   [0.177,0.748,0.0,0.272], 5.66), &
+       Material('InAs', fcc, 4, [3,4,8,11], [-2.99,0.0,0.0,0.68],      [1.09,0.68,0.0,0.408],   6.04), &
+       Material('GaP',  fcc, 4, [3,4,8,11], [-2.99,0.0,0.408,0.952],   [1.63,0.952,0.0,0.272],  5.44) /)
 
   ! we want to be able to concisely compare lattice vectors for equivalence
   ! so we overload the == operator
