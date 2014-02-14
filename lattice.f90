@@ -25,9 +25,7 @@ module Lattice
     integer :: hkl(3)
   contains
     ! ifort complains about multiple PROCEDUREs on the same line (need to check the standard)
-    procedure :: Swap
     procedure :: Sort
-    procedure :: Shift
     procedure :: Is_valid_RLV
     procedure :: Sym_factor
     procedure :: Asym_factor
@@ -72,16 +70,6 @@ module Lattice
 
 contains
 
-  elemental subroutine Swap(this,i,j)
-    ! This really shouldn't need much explanation.
-    class(Latvec), intent(in out) :: this
-    integer,       intent(in)     :: i, j
-
-    ! array-valued index notation
-    this%hkl([i,j]) = this%hkl([j,i])
-
-  end subroutine Swap
-
   elemental subroutine Sort(this)
     ! This is a specialised simple bubble-sorting routine for an {hkl} vector.
     ! The convention is for the elements to be in ascending order.
@@ -90,27 +78,17 @@ contains
     ! Perhaps this could be modified later to match the condensed matter convention
     ! i.e. (1 0 0), (2 -1 0), (-4 3 -3) etc
     ! Sorted in descending element-magnitude, and then by descending sign.
-    class(Latvec), intent(in out), target  :: this
-    integer,                       pointer :: hkl(:)
+    class(Latvec), intent(in out) :: this
 
-    hkl => this%hkl
-    do ! until done
-      if ( (hkl(1) <= hkl(2)) .and. (hkl(2) <= hkl(3)) ) exit ! done
-      if (hkl(1) > hkl(2)) call this%Swap(1,2)
-      if (hkl(2) > hkl(3)) call this%Swap(2,3)
-    end do
+    associate (hkl => this%hkl)
+      do ! until done
+        if ( (hkl(1) <= hkl(2)) .and. (hkl(2) <= hkl(3)) ) exit ! done
+        if (hkl(1) > hkl(2)) hkl([1,2]) = hkl([2,1])
+        if (hkl(2) > hkl(3)) hkl([2,3]) = hkl([3,2])
+      end do
+    end associate
 
   end subroutine Sort
-
-  elemental subroutine Shift(this, amount)
-    ! A type-bound wrapper to make it easier to circle-shift lattice vectors.
-    ! Calling this%Shift(n) will shift `this` by n elements, similar to the intrinsic CSHIFT.
-    class(Latvec), intent(in out) :: this
-    integer,       intent(in)     :: amount
-
-    this%hkl = cshift(this%hkl, amount)
-
-  end subroutine Shift
 
   elemental function Is_valid_RLV(this)
     ! Determines whether an RLV groups (g) we've generated is "valid" for the crystal type.
@@ -213,7 +191,7 @@ contains
     do i = -1, 1, 2
       do j = -1, 1, 2
         do k = -1, 1, 2
-          signing = Latvec([ i*group%hkl(1), j*group%hkl(2), k*group%hkl(3) ])
+          signing = Latvec( group%hkl * [i,j,k] )
           call signing%Sort
           if ( .not. any(signings == signing) ) signings = [ signings, signing ]
         end do
@@ -223,27 +201,25 @@ contains
   end function Get_signings
 
   pure function Get_permutations(group) result(permutations)
-    ! Generate all the unique permutations of an (already 'signed') group in lexicographic order.
+    ! Generate all the unique permutations of an (already 'signed') group in (almost) lexicographic order.
     type(Latvec), intent(in)              :: group
     type(Latvec),             allocatable :: permutations(:)
-    type(Latvec)                          :: permutation
     integer                               :: i
+    ! we define a simple set of array indices to help with the permuting
+    integer, parameter :: indices(3,6) = reshape([1,2,3, 1,3,2, 2,1,3, 2,3,1, 3,1,2, 3,2,1],[3,6])
 
-    allocate(permutations(0))
-    permutation = group
-    do i = 1, 6
-      if (modulo(i,2) == 0) then
-        call permutation%Swap(2,3)
+    associate (hkl => group%hkl)
+      ! if all the terms are equal, there are no additional permutations
+      if ( (hkl(1) == hkl(2)) .and. (hkl(2) == hkl(3)) ) then
+        permutations = [ group ]
+      ! if all the terms are different, we return all 6 possible permutations
+      else if ( (hkl(1) /= hkl(2)) .and. (hkl(1) /= hkl(3)) .and. (hkl(2) /= hkl(3)) ) then
+        permutations = [( Latvec( hkl(indices(:,i)) ) , i = 1,6 )]
+      ! otherwise, we have [aab] in some order, so we just return its 3 cyclic permutations
       else
-        select case (i)
-          case (3)
-            call permutation%Shift(-1) ! shift right
-          case (5)
-            call permutation%Shift(1)  ! shift left
-        end select
+        permutations = [ group, Latvec( cshift(hkl,1) ), Latvec( cshift(hkl,-1) ) ]
       end if
-      if ( .not. any(permutations == permutation) ) permutations = [ permutations, permutation ]
-    end do
+    end associate
 
   end function Get_permutations
 
