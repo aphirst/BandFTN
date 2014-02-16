@@ -25,7 +25,7 @@ module DensityofStates
   ! container for Density of States data
   ! might benefit from being a parameterised type
   type, extends(Eigencalc) :: DoS
-    real,     allocatable :: energies(:), densities(:)
+    real, allocatable :: energies(:), densities(:)
   contains
     procedure :: Generate => Generate_DoS
     procedure :: Plot => Plot_DoS
@@ -43,7 +43,6 @@ contains
     real             :: gaussian
 
     gaussian = ( 1/(sqrt(2*pi) * sigma) ) * exp( -(x - mu)**2 / (2 * sigma**2) )
-
   end function Gaussian
 
   subroutine Generate_DoS(this, this_material, magnitude, q, resolution, dE)
@@ -58,10 +57,7 @@ contains
 
     ! create integer point-mesh
     call this_mesh%Generate(q)
-    select case (this_material%crystal_type)
-      case (fcc)
-        call this_mesh%Symmetrise(symmetries_fcc)
-    end select
+    call this_mesh%Symmetrise(this_material%crystal_type)
     ! convert integer point-mesh into list of k-points
     kpoints = this_mesh%factor * this_mesh%points
     ! compute all eigenenergies at all k-points, this populates this%raw_data
@@ -106,7 +102,6 @@ contains
     ! the integral over the valence band's DoS should equal the number of valence states
     ! make sure to alter this if we introduce extra states (e.g. implementing spin-splitting)
     this%densities(:) = this%densities(:) / (q**3)
-
   end subroutine Generate_DoS
 
   subroutine Plot_DoS(this, filename)
@@ -119,7 +114,6 @@ contains
     do i = 1, size(this%energies)
       write(15,*) this%energies(i), this%densities(i)
     end do
-
   end subroutine Plot_DoS
 
 end module DensityofStates

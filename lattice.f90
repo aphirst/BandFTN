@@ -46,13 +46,13 @@ module Lattice
   ! defitions of commonly-used materials
   ! TODO: make this work more like a database
   type(Material), parameter :: materials(7) = &
-    (/ Material('Ge',   fcc, 4, [3,4,8,11], [-3.238,0.0,0.0517,0.925], [0.0,0.0,0.0,0.0],       5.65), &
+     [ Material('Ge',   fcc, 4, [3,4,8,11], [-3.238,0.0,0.0517,0.925], [0.0,0.0,0.0,0.0],       5.65), &
        Material('Si',   fcc, 4, [3,4,8,11], [-3.048,0.0,0.748,0.98],   [0.0,0.0,0.0,0.0],       5.43), &
        Material('GaAs', fcc, 4, [3,4,8,11], [-3.13,0.0,0.136,0.748],   [0.952,0.68,0.0,0.136],  5.64), &
        Material('InP',  fcc, 4, [3,4,8,11], [-3.606,0.0,0.136,0.816],  [0.952,0.68,0.0,0.136],  5.86), &
        Material('AlAs', fcc, 4, [3,4,8,11], [-2.99,0.0,0.585,0.816],   [0.177,0.748,0.0,0.272], 5.66), &
        Material('InAs', fcc, 4, [3,4,8,11], [-2.99,0.0,0.0,0.68],      [1.09,0.68,0.0,0.408],   6.04), &
-       Material('GaP',  fcc, 4, [3,4,8,11], [-2.99,0.0,0.408,0.952],   [1.63,0.952,0.0,0.272],  5.44) /)
+       Material('GaP',  fcc, 4, [3,4,8,11], [-2.99,0.0,0.408,0.952],   [1.63,0.952,0.0,0.272],  5.44) ]
 
   ! we want to be able to concisely compare lattice vectors for equivalence
   ! so we overload the == operator
@@ -87,7 +87,6 @@ contains
         if (hkl(2) > hkl(3)) hkl([2,3]) = hkl([3,2])
       end do
     end associate
-
   end subroutine Sort
 
   elemental function Is_valid_RLV(this)
@@ -111,7 +110,6 @@ contains
 
     n = matmul(M, this%hkl)
     Is_valid_RLV = all(modulo(n,2) == 0)
-
   end function Is_valid_RLV
 
   elemental function Latvec_equivalence(left, right) result(equiv)
@@ -121,7 +119,6 @@ contains
     logical                  :: equiv
 
     equiv = all(left%hkl == right%hkl)
-
   end function Latvec_equivalence
 
   elemental function Latvec_subtraction(left, right) result(sub)
@@ -131,7 +128,6 @@ contains
     type(Latvec)             :: sub
 
     sub = Latvec(left%hkl - right%hkl)
-
   end function Latvec_subtraction
 
   pure function Get_groups(M) result(groups)
@@ -176,7 +172,6 @@ contains
         end if
       end do
     end do
-
   end function Get_groups
 
   pure function Get_signings(group) result(signings)
@@ -197,7 +192,6 @@ contains
         end do
       end do
     end do
-
   end function Get_signings
 
   pure function Get_permutations(group) result(permutations)
@@ -220,7 +214,6 @@ contains
         permutations = [ group, Latvec( cshift(hkl,1) ), Latvec( cshift(hkl,-1) ) ]
       end if
     end associate
-
   end function Get_permutations
 
   elemental function Sym_factor(this) result(S)
@@ -231,7 +224,6 @@ contains
     real                      :: S
 
     S = cos( (pi/4) * real(sum(this%hkl)) )
-
   end function Sym_factor
 
   elemental function Asym_factor(this) result(S)
@@ -241,7 +233,6 @@ contains
     real                      :: S
 
     S = sin( (pi/4) * real(sum(this%hkl)) )
-
   end function Asym_factor
 
   elemental function Form_factor(this, gpp) result(V)
@@ -262,7 +253,6 @@ contains
     end do
     ! if it doesn't, return 0
     V = (0.0,0.0)
-
   end function Form_factor
 
 end module Lattice

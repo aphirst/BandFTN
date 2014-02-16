@@ -92,7 +92,6 @@ contains
     do concurrent ( i = 1:size(diag) )
       md_sum(i,i) = diag(i)
     end do
-
   end function Matrix_diagonal_addition
 
   pure subroutine Create_potmat(this, this_material, magnitude)
@@ -123,7 +122,6 @@ contains
     do concurrent ( i = 1:size(this%basis), j = 1:size(this%basis), j > i )
       this%M(i,j) = this_material%Form_factor(this%basis(i) - this%basis(j))
     end do
-
   end subroutine Create_potmat
 
   pure subroutine Update_potmat(this, k)
@@ -144,7 +142,6 @@ contains
     ! 'N' => no eigenvectors
     ! 'U' => use the upper diagonal of the input matrix
     call CHEEV('N', 'U', N, (this%M + this%diag), N, this%EVs, WORK, size(WORK), RWORK, INFO)
-
   end subroutine Update_potmat
 
   pure subroutine Compute_energies(this, kpoints, this_material, magnitude)
@@ -169,7 +166,6 @@ contains
     ! renormalise the energy scale based on the number of valence electrons (i.e. number of valence bands)
     ! the top of the last (highest) filled band should be the zero point
     this%raw_data = this%raw_data - maxval( this%raw_data(this_material%electrons,:) )
-
   end subroutine Compute_energies
 
   elemental function Latvec_integer_product(left, right) result(prod)
@@ -179,7 +175,6 @@ contains
     type(latvec)             :: prod
 
     prod = Latvec( left * right%hkl )
-
   end function Latvec_integer_product
 
   elemental function Latvec_real_product(left, right) result(prod)
@@ -189,7 +184,6 @@ contains
     type(Wavevec)             :: prod
 
     prod = Wavevec( left * right%hkl )
-
   end function Latvec_real_product
 
 end module Pseudopotential

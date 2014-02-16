@@ -28,9 +28,9 @@ module Bandstructure
   end type Highsym
 
   ! high-symmetry points for the FCC lattice
-  type(Highsym), parameter :: sympoints_fcc(6) = (/ Highsym([0.5, 0.5, 0.5], 'L', 0), Highsym([0.0, 0.0, 0.0], 'G', 0), &
-                                                    Highsym([1.0, 0.0, 0.0], 'X', 0), Highsym([1.0, 0.5, 0.0], 'W', 0), &
-                                                    Highsym([0.75,0.75,0.0], 'K', 0), Highsym([0.0, 0.0, 0.0], 'G', 0) /)
+  type(Highsym), parameter :: sympoints_fcc(6) = [ Highsym([0.5, 0.5, 0.5], 'L', 0), Highsym([0.0, 0.0, 0.0], 'G', 0), &
+                                                   Highsym([1.0, 0.0, 0.0], 'X', 0), Highsym([1.0, 0.5, 0.0], 'W', 0), &
+                                                   Highsym([0.75,0.75,0.0], 'K', 0), Highsym([0.0, 0.0, 0.0], 'G', 0) ]
 
   ! container for an energy band
   type Energyband
@@ -84,7 +84,6 @@ contains
       steps(i)%k = steps(i)%k / real(widths(i))
       kpoints(sympoints(i-1)%k_index+1:sympoints(i)%k_index) = [( Wavevec(sympoints(i-1)%k+steps(i)%k*real(j)), j=1,widths(i) )]
     end do
-
   end function Expand_highsym
 
   pure function Bands_intersect(left, right) result(intersects)
@@ -100,7 +99,6 @@ contains
     else
       intersects = ( maxval(right%E) > minval(left%E) )
     end if
-
   end function Bands_intersect
 
   subroutine Generate_bandstructure(this, this_material, magnitude, resolution)
@@ -112,8 +110,8 @@ contains
     integer                                               :: i
 
     select case (this_material%crystal_type)
-      case (fcc)
-        this%sympoints = sympoints_fcc
+    case (fcc)
+      this%sympoints = sympoints_fcc
     end select
     ! initialise the full basis of wavevectors from the high-symmetry points
     ! also stores the appropriate k-indices of the high-symmetry points into `this%sympoints` as a side-effect
@@ -130,7 +128,6 @@ contains
     do concurrent ( i = 1:size(this%bands) )
       this%bands(i)%E => this%raw_data(i,:)
     end do
-
   end subroutine Generate_bandstructure
 
   subroutine Plot_bandstructure(this, filename, num_bands)
@@ -169,7 +166,6 @@ contains
     write(10,'(a)') 'set ytics 1'
     write(10,'(a,i0,3(a))') 'plot for [i=2:',num_bands+1,'] "', trim(filename)//'.bnd" u 1:i w l lw 3'
     close(10)
-
   end subroutine Plot_bandstructure
 
 end module Bandstructure

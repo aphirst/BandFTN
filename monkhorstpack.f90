@@ -42,27 +42,27 @@ module MonkhorstPack
   end type Symmetry
 
   type(Symmetry), parameter :: symmetries_fcc(14) = &
-    (/ Symmetry(reshape([1,0,0,  0,1,0,  0,0,1], [3,3]),1), & ! identity, => once unique
-       Symmetry(reshape([1,0,0,  0,0,1,  0,-1,0],[3,3]),3), & ! rotate about x, y, z by pi/2
-       Symmetry(reshape([0,0,-1, 0,1,0,  1,0,0], [3,3]),3), & ! 4-fold => thrice unique
-       Symmetry(reshape([0,1,0,  -1,0,0, 0,0,1], [3,3]),3), &
-       Symmetry(reshape([0,1,0,  0,0,1,  1,0,0], [3,3]),2), & ! rotate about [111] by 2pi/3
-       Symmetry(reshape([0,0,-1, 1,0,0,  0,-1,0],[3,3]),2), & ! 3-fold => twice unique
-       Symmetry(reshape([0,0,1,  -1,0,0, 0,-1,0],[3,3]),2), &
-       Symmetry(reshape([0,0,-1, -1,0,0, 0,1,0], [3,3]),2), &
-       Symmetry(reshape([0,1,0,  1,0,0,  0,0,-1],[3,3]),1), & ! rotate about [110] by pi
-       Symmetry(reshape([0,0,1,  0,-1,0, 1,0,0], [3,3]),1), & ! 2-fold => once unique
-       Symmetry(reshape([-1,0,0, 0,0,1,  0,1,0], [3,3]),1), &
-       Symmetry(reshape([0,-1,0, -1,0,0, 0,0,-1],[3,3]),1), &
-       Symmetry(reshape([0,0,-1, 0,-1,0, -1,0,0],[3,3]),1), &
-       Symmetry(reshape([-1,0,0, 0,0,-1, 0,-1,0],[3,3]),1) /)
+     [ Symmetry(reshape([1,0,0,  0,1,0,  0,0,1], [3,3]), 1), & ! identity, => once unique
+       Symmetry(reshape([1,0,0,  0,0,1,  0,-1,0],[3,3]), 3), & ! rotate about x, y, z by pi/2
+       Symmetry(reshape([0,0,-1, 0,1,0,  1,0,0], [3,3]), 3), & ! 4-fold => thrice unique
+       Symmetry(reshape([0,1,0,  -1,0,0, 0,0,1], [3,3]), 3), &
+       Symmetry(reshape([0,1,0,  0,0,1,  1,0,0], [3,3]), 2), & ! rotate about [111] by 2pi/3
+       Symmetry(reshape([0,0,-1, 1,0,0,  0,-1,0],[3,3]), 2), & ! 3-fold => twice unique
+       Symmetry(reshape([0,0,1,  -1,0,0, 0,-1,0],[3,3]), 2), &
+       Symmetry(reshape([0,0,-1, -1,0,0, 0,1,0], [3,3]), 2), &
+       Symmetry(reshape([0,1,0,  1,0,0,  0,0,-1],[3,3]), 1), & ! rotate about [110] by pi
+       Symmetry(reshape([0,0,1,  0,-1,0, 1,0,0], [3,3]), 1), & ! 2-fold => once unique
+       Symmetry(reshape([-1,0,0, 0,0,1,  0,1,0], [3,3]), 1), &
+       Symmetry(reshape([0,-1,0, -1,0,0, 0,0,-1],[3,3]), 1), &
+       Symmetry(reshape([0,0,-1, 0,-1,0, -1,0,0],[3,3]), 1), &
+       Symmetry(reshape([-1,0,0, 0,0,-1, 0,-1,0],[3,3]), 1) ]
 
   interface operator (.apply.)
     procedure :: Apply_symmetry
   end interface operator (.apply.)
 
   private
-  public :: Mesh, Symmetry, symmetries_fcc
+  public :: Mesh, Symmetry
 
 contains
 
@@ -73,7 +73,6 @@ contains
     type(Latvec)               :: transformed
 
     transformed = Latvec( matmul(left%matrix , right%hkl) )
-
   end function Apply_symmetry
 
   pure function U(r, q)
@@ -82,7 +81,6 @@ contains
     integer             :: U
 
     U = (2*r) - q - 1
-
   end function U
 
   pure subroutine Generate_mesh(this, q)
@@ -102,17 +100,22 @@ contains
       this%points(i + q*(j-1) + q*q*(k-1)) = Latvec( U(i,q)*RLVs(:,1) + U(j,q)*RLVs(:,2) + U(k,q)*RLVs(:,3) )
     end do
     this%degen(:) = 0
-
   end subroutine Generate_mesh
 
-  pure subroutine Symmetrise_mesh(this, symmetries)
+  pure subroutine Symmetrise_mesh(this, crystal_type)
     ! Applies crystal symmetry operations to an unsymmetrised mesh, leaving only a symmetry-reduced subset.
     class(Mesh),    intent(in out)              :: this
-    type(Symmetry), intent(in)                  :: symmetries(:)
+    integer,        intent(in)                  :: crystal_type
+    type(Symmetry),                 allocatable :: symmetries(:)
     integer                                     :: i, j, k, l
     type(Latvec)                                :: current
     integer,                        allocatable :: indices(:)
 
+    ! use the correct set of symmetry operations for the crystal type
+    select case (crystal_type)
+    case (fcc)
+      symmetries = symmetries_fcc
+    end select
     ! keep track of the indices (w.r.t. `this%points`) of all the symmetrised points
     allocate(indices(0))
     ! check each meshpoint against all earlier points with degen > 0
@@ -147,7 +150,6 @@ contains
     ! saves having to perform expensive PACK comparisons and so on
     this%points = this%points(indices)
     this%degen = this%degen(indices)
-
   end subroutine Symmetrise_mesh
 
 end module MonkhorstPack
