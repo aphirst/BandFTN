@@ -28,13 +28,12 @@ module Pseudopotential
   ! container for pseudopotential matrix
   type Potmat
     type(Latvec), allocatable :: basis(:)
-    complex,      allocatable :: M(:,:), diag(:)
-    real,         allocatable :: EVs(:)
+    complex,      allocatable :: M(:,:)
     ! storing a copy of the lattice constant in here simplifies things somewhat
     real                      :: A
   contains
     procedure :: Create => Create_potmat
-    procedure :: Update => Update_potmat
+    procedure :: EVs => Get_eigenvalues
     ! might be easier to then spread into energy-bands now that eigenvalues are inside here
   end type Potmat
 
@@ -45,12 +44,7 @@ module Pseudopotential
     real              :: Emin, Emax
   contains
     procedure :: Compute => Compute_energies
-  end type
-
-  ! we want to be able to add a matrix to a matrix-diagonal
-  interface operator (+)
-    procedure :: Matrix_diagonal_addition
-  end interface operator (+)
+  end type Eigencalc
 
   ! we want to be able to multiply a Latvec with integer or real factors to get a Latvec or a Wavevec respectively
   interface operator (*)
@@ -72,27 +66,9 @@ module Pseudopotential
   end interface
 
   private
-  public :: Wavevec, Potmat, Eigencalc, operator(+), operator(*)
+  public :: Wavevec, Potmat, Eigencalc, operator(*)
 
 contains
-
-  pure function Matrix_diagonal_addition(M, diag) result(md_sum)
-    ! Adds a matrix-diagonal to an N*N matrix (by replacement of the diagonal).
-    ! (overloads the `+` operator)
-    complex, intent(in) :: M(:,:), diag(:)
-    complex             :: md_sum(size(diag),size(diag))
-    integer             :: i, j
-
-    ! first copy over all the non-diagonal elements
-    do concurrent ( i = 1:size(diag), j=1:size(diag), j > i )
-      md_sum(i,j) = M(i,j)
-    end do
-    ! then copy over the diagonal elements
-    ! for our purposes, the original matrix diagonal is always 0, so we don't need to actually add
-    do concurrent ( i = 1:size(diag) )
-      md_sum(i,i) = diag(i)
-    end do
-  end function Matrix_diagonal_addition
 
   pure subroutine Create_potmat(this, this_material, magnitude)
     ! Initialises the state of type(Potmat) entity, using the properties of `this_material`
@@ -113,36 +89,37 @@ contains
     ! populate the non-zero non-diagonal elements of the potential matrix
     ! rows are g', columns are g
     if (allocated(this%M)) deallocate(this%M)
-    if (allocated(this%diag)) deallocate(this%diag)
-    if (allocated(this%EVs)) deallocate(this%EVs)
     allocate(this%M( size(this%basis), size(this%basis) ))
-    allocate(this%diag( size(this%basis) ))
-    allocate(this%EVs( size(this%basis) ))
     ! only need to populate the upper diagonal (since the matrix must have real eigenenergies, it must be Hermitian)
     do concurrent ( i = 1:size(this%basis), j = 1:size(this%basis), j > i )
       this%M(i,j) = this_material%Form_factor(this%basis(i) - this%basis(j))
     end do
   end subroutine Create_potmat
 
-  pure subroutine Update_potmat(this, k)
-    ! Updates the diagonal (KE) component of a potential matrix using the current value of wavevector, k,
-    ! and computes the corresponding eigenenergies.
-    class(Potmat), intent(in out) :: this
-    type(Wavevec), intent(in)     :: k
-    integer                       :: i, INFO, N
-    real                          :: RWORK(3*size(this%EVs) - 2)
-    complex                       :: WORK(2*size(this%EVs) - 1)
+  pure function Get_eigenvalues(this, k) result(EVs)
+    ! Returns the eigenenergies of a pseudopotential matrix at a given wavevector.
+    class(Potmat), intent(in) :: this
+    type(Wavevec), intent(in) :: k
+    integer                   :: i, INFO, N
+    real                      :: EVs(size(this%basis)), RWORK(3*size(this%basis) - 2)
+    complex                   :: M(size(this%basis),size(this%basis)), WORK(2*size(this%basis) - 1)
 
-    ! update all kinetic energy terms, across the matrix's diagonal
-    do concurrent ( i = 1:size(this%diag) )
-      this%diag(i) = (hc/this%A)**2 * sum( (k%k + real(this%basis(i)%hkl))**2 ) / (2.0 * E_e)
+    N = size(this%basis)
+    ! we make a local copy of the (upper-diagonal elements of the) pseudopotential matrix
+    do concurrent ( i = 2:N )
+      M(1:i-1,i) = this%M(1:i-1,i)
     end do
-    N = size( this%diag )
+    ! update all kinetic energy terms, across the matrix's diagonal
+    do concurrent ( i = 1:N )
+      ! technically speaking this should be an addition
+      ! for now, the diagonal of the original matrix is always zero, so we can assign without adding
+      M(i,i) = (hc/this%A)**2 * sum( (k%k + real(this%basis(i)%hkl))**2 ) / (2.0 * E_e)
+    end do
     ! LAPACK routine for diagonalising complex, hermitian matrixes
     ! 'N' => no eigenvectors
     ! 'U' => use the upper diagonal of the input matrix
-    call CHEEV('N', 'U', N, (this%M + this%diag), N, this%EVs, WORK, size(WORK), RWORK, INFO)
-  end subroutine Update_potmat
+    call CHEEV('N', 'U', N, M, N, EVs, WORK, size(WORK), RWORK, INFO)
+  end function Get_eigenvalues
 
   pure subroutine Compute_energies(this, kpoints, this_material, magnitude)
     ! Generates and populates a raw data array of eigenenergies, each column being the results for one k-point.
@@ -160,8 +137,7 @@ contains
     ! this outer loop is PROBABLY parallelisable, depending on the thread-safety of the LAPACK implementation
     ! though if system LAPACK is already multithreaded, there's probably little point setting CONCURRENT here
     do i = 1, size(kpoints)
-      call V%Update(kpoints(i))
-      this%raw_data(:,i) = V%EVs
+      this%raw_data(:,i) = V%EVs(kpoints(i))
     end do
     ! renormalise the energy scale based on the number of valence electrons (i.e. number of valence bands)
     ! the top of the last (highest) filled band should be the zero point
