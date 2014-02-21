@@ -127,7 +127,7 @@ contains
     type(Latvec), intent(in) :: left, right
     type(Latvec)             :: sub
 
-    sub = Latvec(left%hkl - right%hkl)
+    sub%hkl = left%hkl - right%hkl
   end function Latvec_subtraction
 
   pure function Get_groups(M) result(groups)
@@ -163,7 +163,7 @@ contains
         h = floor(sqrt( real(M - l**2 - k**2) ))
         ! due to rounding, need to check that this {hkl} gives M
         if ( dot_product([h,k,l],[h,k,l]) == M ) then
-          group = Latvec([h,k,l])
+          group%hkl = [h,k,l]
           call group%Sort
           ! if not present in the current list of groups, and is a valid RLV, add to the list
           if ( .not. any(groups == group) ) then
@@ -186,7 +186,7 @@ contains
     do i = -1, 1, 2
       do j = -1, 1, 2
         do k = -1, 1, 2
-          signing = Latvec( group%hkl * [i,j,k] )
+          signing%hkl = group%hkl * [i,j,k]
           call signing%Sort
           if ( .not. any(signings == signing) ) signings = [ signings, signing ]
         end do

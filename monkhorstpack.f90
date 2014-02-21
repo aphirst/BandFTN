@@ -34,45 +34,44 @@ module MonkhorstPack
   end type Mesh
 
   ! container for a group of symmetry operations, in matrix representation
-  ! TODO: work out whether this type (and instances of it) can be private to this module
-  ! TODO: attempt to replace this matrix representation with array-valued index trickery
   type Symmetry
     ! `iterations` is the number of new points that can be gained from a specific symmetry operation
-    integer :: matrix(3,3), iterations
+    integer :: swaps(3), factors(3), iterations
   end type Symmetry
 
   type(Symmetry), parameter :: symmetries_fcc(14) = &
-     [ Symmetry(reshape([1,0,0,  0,1,0,  0,0,1], [3,3]), 1), & ! identity, => once unique
-       Symmetry(reshape([1,0,0,  0,0,1,  0,-1,0],[3,3]), 3), & ! rotate about x, y, z by pi/2
-       Symmetry(reshape([0,0,-1, 0,1,0,  1,0,0], [3,3]), 3), & ! 4-fold => thrice unique
-       Symmetry(reshape([0,1,0,  -1,0,0, 0,0,1], [3,3]), 3), &
-       Symmetry(reshape([0,1,0,  0,0,1,  1,0,0], [3,3]), 2), & ! rotate about [111] by 2pi/3
-       Symmetry(reshape([0,0,-1, 1,0,0,  0,-1,0],[3,3]), 2), & ! 3-fold => twice unique
-       Symmetry(reshape([0,0,1,  -1,0,0, 0,-1,0],[3,3]), 2), &
-       Symmetry(reshape([0,0,-1, -1,0,0, 0,1,0], [3,3]), 2), &
-       Symmetry(reshape([0,1,0,  1,0,0,  0,0,-1],[3,3]), 1), & ! rotate about [110] by pi
-       Symmetry(reshape([0,0,1,  0,-1,0, 1,0,0], [3,3]), 1), & ! 2-fold => once unique
-       Symmetry(reshape([-1,0,0, 0,0,1,  0,1,0], [3,3]), 1), &
-       Symmetry(reshape([0,-1,0, -1,0,0, 0,0,-1],[3,3]), 1), &
-       Symmetry(reshape([0,0,-1, 0,-1,0, -1,0,0],[3,3]), 1), &
-       Symmetry(reshape([-1,0,0, 0,0,-1, 0,-1,0],[3,3]), 1) ]
+     [ Symmetry([1,2,3], [ 1, 1, 1], 1), & ! identity, => once unique
+       Symmetry([1,3,2], [ 1,-1, 1], 3), & ! rotate about x, y, z by pi/2
+       Symmetry([3,2,1], [ 1, 1,-1], 3), & ! 4-fold => thrice unique
+       Symmetry([2,1,3], [-1, 1, 1], 3), &
+       Symmetry([2,3,1], [ 1, 1, 1], 2), & ! rotate about [111] by 2pi/3
+       Symmetry([3,1,2], [ 1,-1,-1], 2), & ! 3-fold => twice unique
+       Symmetry([3,1,2], [-1,-1, 1], 2), &
+       Symmetry([3,1,2], [-1, 1,-1], 2), &
+       Symmetry([2,1,3], [ 1, 1,-1], 1), & ! rotate about [110] by pi
+       Symmetry([3,2,1], [ 1,-1, 1], 1), & ! 2-fold => once unique
+       Symmetry([1,3,2], [-1, 1, 1], 1), &
+       Symmetry([2,1,3], [-1,-1,-1], 1), &
+       Symmetry([3,2,1], [-1,-1,-1], 1), &
+       Symmetry([1,3,2], [-1,-1,-1], 1) ]
 
   interface operator (.apply.)
     procedure :: Apply_symmetry
   end interface operator (.apply.)
 
   private
-  public :: Mesh, Symmetry
+  public :: Mesh
 
 contains
 
   pure function Apply_symmetry(left, right) result(transformed)
-    ! "Applies" a symmetry operation to a point, using matrix multiplication.
+    ! Returns a mesh-point transformed by a symmetry operation.
+    ! The element swapping occurs BEFORE the multiplication factors are applied!
     type(Symmetry), intent(in) :: left
     type(Latvec),   intent(in) :: right
     type(Latvec)               :: transformed
 
-    transformed = Latvec( matmul(left%matrix , right%hkl) )
+    transformed%hkl = left%factors * right%hkl(left%swaps)
   end function Apply_symmetry
 
   pure function U(r, q)
