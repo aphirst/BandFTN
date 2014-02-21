@@ -28,7 +28,10 @@ module Pseudopotential
   ! container for pseudopotential matrix
   type Potmat
     type(Latvec), allocatable :: basis(:)
-    complex,      allocatable :: M(:,:)
+    integer                   :: N
+    ! we use packed storage for the upper triangle of the N-by-N matrix
+    complex,      allocatable :: M(:)
+    integer,      allocatable :: diag_indices(:)
     ! storing a copy of the lattice constant in here simplifies things somewhat
     real                      :: A
   contains
@@ -52,18 +55,18 @@ module Pseudopotential
     procedure :: Latvec_real_product
   end interface operator (*)
 
-  ! explicit interface to the hermitian LAPACK routine, just a bit of good practice
-  interface
-    pure subroutine CHEEV(JOBZ, UPLO, N, A, LDA, W, WORK, LWORK, RWORK, INFO)
+  ! explicit interface to the packed-storage hermitian LAPACK routine
+  interface CHPEV
+    subroutine CHPEV(JOBZ, UPLO, N, AP, W, Z, LDZ, WORK, RWORK, INFO)
       character(1), intent(in)     :: JOBZ, UPLO
-      integer,      intent(in)     :: N, LDA, LWORK
-      complex,      intent(in)     :: A(LDA,N)
-      complex,      intent(in out) :: WORK(LWORK)
-      real,         intent(in out) :: RWORK(3*N - 2)
+      integer,      intent(in)     :: N, LDZ
+      complex,      intent(in out) :: AP( (N*(N+1))/2 )
       real,         intent(out)    :: W(N)
+      complex,      intent(out)    :: Z(LDZ,N), WORK(2*N - 1)
+      real,         intent(out)    :: RWORK(3*N - 2)
       integer,      intent(out)    :: INFO
-    end subroutine CHEEV
-  end interface
+    end subroutine CHPEV
+  end interface CHPEV
 
   private
   public :: Wavevec, Potmat, Eigencalc, operator(*)
@@ -78,6 +81,7 @@ contains
     integer,        intent(in)                  :: magnitude
     integer                                     :: i, j
     type(Latvec),                   allocatable :: groups(:), signings(:)
+    complex,                        allocatable :: M(:,:)
 
     ! copy in the lattice constant
     this%A = this_material%A
@@ -86,42 +90,47 @@ contains
     signings = [( Get_signings(groups(i)), i=1,size(groups) )]
     if (allocated(this%basis)) deallocate(this%basis)
     this%basis = [( Get_permutations(signings(i)), i=1,size(signings) )]
-    ! populate the non-zero non-diagonal elements of the potential matrix
+    ! we store the size of the basis inside the type(Potmat) entity for repeated use later
+    this%N = size(this%basis)
+    ! populate the non-zero non-diagonal elements of a temporary potential matrix
     ! rows are g', columns are g
-    if (allocated(this%M)) deallocate(this%M)
-    allocate(this%M( size(this%basis), size(this%basis) ))
     ! only need to populate the upper diagonal (since the matrix must have real eigenenergies, it must be Hermitian)
+    allocate(M(this%N,this%N))
     do concurrent ( i = 1:size(this%basis), j = 1:size(this%basis), j > i )
-      this%M(i,j) = this_material%Form_factor(this%basis(i) - this%basis(j))
+      M(i,j) = this_material%Form_factor(this%basis(i) - this%basis(j))
     end do
+    ! we cache the indices for the "diagonal" elements of our packed-storage array
+    if (allocated(this%diag_indices)) deallocate(this%diag_indices)
+    this%diag_indices = [( (i*(i+1))/2 , i=1,this%N )]
+    ! we copy the upper diagonal of the temporary matrix into the packed-storage matrix `this%M`
+    if (allocated(this%M)) deallocate(this%M)
+    this%M = [( M(1:i,i), i = 1,this%N )]
   end subroutine Create_potmat
 
-  pure function Get_eigenvalues(this, k) result(EVs)
+  function Get_eigenvalues(this, k) result(EVs)
     ! Returns the eigenenergies of a pseudopotential matrix at a given wavevector.
     class(Potmat), intent(in) :: this
     type(Wavevec), intent(in) :: k
-    integer                   :: i, INFO, N
-    real                      :: EVs(size(this%basis)), RWORK(3*size(this%basis) - 2)
-    complex                   :: M(size(this%basis),size(this%basis)), WORK(2*size(this%basis) - 1)
+    integer                   :: i, INFO
+    real                      :: EVs(this%N), RWORK(3*this%N - 2)
+    complex                   :: M(size(this%M)), WORK(2*this%N - 1), Z(this%N,this%N)
 
-    N = size(this%basis)
-    ! we make a local copy of the (upper-diagonal elements of the) pseudopotential matrix
-    do concurrent ( i = 2:N )
-      M(1:i-1,i) = this%M(1:i-1,i)
-    end do
+    ! we make a local copy of the packed pseudopotential matrix
+    M(:) = this%M(:)
     ! update all kinetic energy terms, across the matrix's diagonal
-    do concurrent ( i = 1:N )
+    do concurrent ( i = 1:this%N )
       ! technically speaking this should be an addition
       ! for now, the diagonal of the original matrix is always zero, so we can assign without adding
-      M(i,i) = (hc/this%A)**2 * sum( (k%k + real(this%basis(i)%hkl))**2 ) / (2.0 * E_e)
+      M(this%diag_indices(i)) = (hc/this%A)**2 * sum( (k%k + real(this%basis(i)%hkl))**2 ) / (2.0 * E_e)
     end do
-    ! LAPACK routine for diagonalising complex, hermitian matrixes
+    ! LAPACK routine for diagonalising complex hermitian matrices in packed storage
     ! 'N' => no eigenvectors
-    ! 'U' => use the upper diagonal of the input matrix
-    call CHEEV('N', 'U', N, M, N, EVs, WORK, size(WORK), RWORK, INFO)
+    ! 'U' => the upper diagonal is packed in the input array
+    ! eigenvectors would be stored in `Z` if we wanted them
+    call CHPEV('N', 'U', this%N, M, EVs, Z, this%N, WORK, RWORK, INFO)
   end function Get_eigenvalues
 
-  pure subroutine Compute_energies(this, kpoints, this_material, magnitude)
+  subroutine Compute_energies(this, kpoints, this_material, magnitude)
     ! Generates and populates a raw data array of eigenenergies, each column being the results for one k-point.
     class(Eigencalc), intent(in out) :: this
     type(Wavevec),    intent(in)     :: kpoints(:)
