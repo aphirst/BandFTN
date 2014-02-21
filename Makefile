@@ -39,7 +39,7 @@ EXE_DIR = /tmp/BandFTN/
 EXE = BandFTN
 FC = gfortran
 IDIR =
-CFLAGS = -Ofast -s -march=native -std=f2008 -Wall -Wextra -J$(OBJS_DIR) $(IDIR)
+CFLAGS = -Og -g -march=native -std=f2008 -Wall -Wextra -J$(OBJS_DIR) $(IDIR)
 LFLAGS = -llapack
 LIBS =
 

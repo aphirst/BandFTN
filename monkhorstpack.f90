@@ -17,7 +17,6 @@
 module MonkhorstPack
   use Constants
   use Lattice
-  use Pseudopotential
 
   implicit none
 

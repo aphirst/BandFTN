@@ -20,11 +20,6 @@ module Pseudopotential
 
   implicit none
 
-  ! container for wavevectors
-  type Wavevec
-    real :: k(3)
-  end type Wavevec
-
   ! container for pseudopotential matrix
   type Potmat
     type(Latvec), allocatable :: basis(:)
@@ -49,12 +44,6 @@ module Pseudopotential
     procedure :: Compute => Compute_energies
   end type Eigencalc
 
-  ! we want to be able to multiply a Latvec with integer or real factors to get a Latvec or a Wavevec respectively
-  interface operator (*)
-    procedure :: Latvec_integer_product
-    procedure :: Latvec_real_product
-  end interface operator (*)
-
   ! explicit interface to the packed-storage hermitian LAPACK routine
   interface CHPEV
     subroutine CHPEV(JOBZ, UPLO, N, AP, W, Z, LDZ, WORK, RWORK, INFO)
@@ -69,7 +58,7 @@ module Pseudopotential
   end interface CHPEV
 
   private
-  public :: Wavevec, Potmat, Eigencalc, operator(*)
+  public :: Potmat, Eigencalc
 
 contains
 
@@ -80,16 +69,13 @@ contains
     type(Material), intent(in)                  :: this_material
     integer,        intent(in)                  :: magnitude
     integer                                     :: i, j
-    type(Latvec),                   allocatable :: groups(:), signings(:)
     complex,                        allocatable :: M(:,:)
 
     ! copy in the lattice constant
     this%A = this_material%A
     ! initialise the RLV basis
-    groups = [( Get_groups(i), i=0,magnitude )]
-    signings = [( Get_signings(groups(i)), i=1,size(groups) )]
     if (allocated(this%basis)) deallocate(this%basis)
-    this%basis = [( Get_permutations(signings(i)), i=1,size(signings) )]
+    this%basis = Generate_basis(magnitude)
     ! we store the size of the basis inside the type(Potmat) entity for repeated use later
     this%N = size(this%basis)
     ! populate the non-zero non-diagonal elements of a temporary potential matrix
@@ -152,23 +138,5 @@ contains
     ! the top of the last (highest) filled band should be the zero point
     this%raw_data = this%raw_data - maxval( this%raw_data(this_material%electrons,:) )
   end subroutine Compute_energies
-
-  elemental function Latvec_integer_product(left, right) result(prod)
-    ! Multiplies an integer scalar by an integer mesh-point (of type Latvec), returning another mesh-point.
-    integer,      intent(in) :: left
-    type(Latvec), intent(in) :: right
-    type(latvec)             :: prod
-
-    prod = Latvec( left * right%hkl )
-  end function Latvec_integer_product
-
-  elemental function Latvec_real_product(left, right) result(prod)
-    ! Multiplies a real scalar by an integer mesh-point (of type Latvec), returning a real k-point (of type Wavevec).
-    real,          intent(in) :: left
-    type(Latvec),  intent(in) :: right
-    type(Wavevec)             :: prod
-
-    prod = Wavevec( left * right%hkl )
-  end function Latvec_real_product
 
 end module Pseudopotential

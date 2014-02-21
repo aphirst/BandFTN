@@ -31,6 +31,11 @@ module Lattice
     procedure :: Asym_factor
   end type Latvec
 
+  ! container for wavevectors
+  type Wavevec
+    real :: k(3)
+  end type Wavevec
+
   ! container for pseudopotential Form-Factors
   type Material
     character(4) :: name
@@ -44,7 +49,7 @@ module Lattice
   end type Material
 
   ! defitions of commonly-used materials
-  ! TODO: make this work more like a database
+  ! TODO: make this work more like a database, and be private to this module if possible
   type(Material), parameter :: materials(7) = &
      [ Material('Ge',   fcc, 4, [3,4,8,11], [-3.238,0.0,0.0517,0.925], [0.0,0.0,0.0,0.0],       5.65), &
        Material('Si',   fcc, 4, [3,4,8,11], [-3.048,0.0,0.748,0.98],   [0.0,0.0,0.0,0.0],       5.43), &
@@ -55,7 +60,7 @@ module Lattice
        Material('GaP',  fcc, 4, [3,4,8,11], [-2.99,0.0,0.408,0.952],   [1.63,0.952,0.0,0.272],  5.44) ]
 
   ! we want to be able to concisely compare lattice vectors for equivalence
-  ! so we overload the == operator
+  ! so we overload the `==` operator
   interface operator (==)
     procedure :: Latvec_equivalence
   end interface operator (==)
@@ -65,8 +70,14 @@ module Lattice
     procedure :: Latvec_subtraction
   end interface operator (-)
 
+  ! and multiply them with integer or real factors to get a Latvec or a Wavevec respectively
+  interface operator (*)
+    procedure :: Latvec_integer_product
+    procedure :: Latvec_real_product
+  end interface operator (*)
+
   private
-  public :: Latvec, Material, materials, operator(==), operator(-), Get_groups, Get_signings, Get_permutations
+  public :: Latvec, Wavevec, Material, materials, operator(==), operator(-), operator(*), Generate_basis
 
 contains
 
@@ -129,6 +140,24 @@ contains
 
     sub%hkl = left%hkl - right%hkl
   end function Latvec_subtraction
+
+  elemental function Latvec_integer_product(left, right) result(prod)
+    ! Multiplies an integer scalar by an integer mesh-point (of type Latvec), returning another mesh-point.
+    integer,      intent(in) :: left
+    type(Latvec), intent(in) :: right
+    type(Latvec)             :: prod
+
+    prod%hkl = left * right%hkl
+  end function Latvec_integer_product
+
+  elemental function Latvec_real_product(left, right) result(prod)
+    ! Multiplies a real scalar by an integer mesh-point (of type Latvec), returning a real k-point (of type Wavevec).
+    real,          intent(in) :: left
+    type(Latvec),  intent(in) :: right
+    type(Wavevec)             :: prod
+
+    prod%k = left * right%hkl
+  end function Latvec_real_product
 
   pure function Get_groups(M) result(groups)
     ! Generate RLV Miller index 'families' (denoted here as {h k l}) with magnitude sqrt(M),
@@ -215,6 +244,17 @@ contains
       end if
     end associate
   end function Get_permutations
+
+  pure function Generate_basis(magnitude) result(basis)
+    ! Return an array of type(Latvec) containing all the RLVs in the magnitude range 0 to `magnitude` inclusive.
+    integer,      intent(in)              :: magnitude
+    type(Latvec),             allocatable :: groups(:), signings(:), basis(:)
+    integer                               :: i
+
+    groups = [( Get_groups(i), i=0,magnitude )]
+    signings = [( Get_signings(groups(i)), i=1,size(groups) )]
+    basis = [( Get_permutations(signings(i)), i=1,size(signings) )]
+  end function Generate_basis
 
   elemental function Sym_factor(this) result(S)
     ! Returns the symmetric structure factor for a value of g'', or g-prime-prime
