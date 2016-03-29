@@ -59,7 +59,7 @@ module Bandstructure
   end type Bandstruc
 
   private
-  public :: Highsym, Bandstruc
+  public :: Highsym, sympoints_fcc, Bandstruc
 
 contains
 

@@ -15,6 +15,7 @@
 ! along with BandFTN. If not, see <http://www.gnu.org/licenses/>.
 
 program BandFTN
+  use Constants
   use Bandstructure
   use MonkhorstPack
 
@@ -34,7 +35,7 @@ program BandFTN
     print *, ''
     print *, i,'=>',i**3
     call my_mesh%Generate(i)
-    call my_mesh%Symmetrise(fcc_symmetries)
+    call my_mesh%Symmetrise(fcc)
   end do
 
 end program BandFTN

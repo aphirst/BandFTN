@@ -84,12 +84,14 @@ contains
   pure subroutine Generate_mesh(this, q)
     ! Initialises and populates an even mesh of integer points, using the mesh "width" q.
     ! TODO: account for different crystal types (i.e. different RLVs)
-    integer,     intent(in)             :: q
-    class(Mesh), intent(out)            :: this
-    integer,                  parameter :: RLVs(3,3) = reshape([-1,1,1, 1,-1,1, 1,1,-1],[3,3])
-    integer                             :: i, j, k
+    class(Mesh), intent(in out)            :: this
+    integer,     intent(in)                :: q
+    integer,                     parameter :: RLVs(3,3) = reshape([-1,1,1, 1,-1,1, 1,1,-1],[3,3])
+    integer                                :: i, j, k
 
     this%factor = 1.0 / real(2 * q)
+    if (allocated(this%points)) deallocate(this%points)
+    if (allocated(this%degen)) deallocate(this%degen)
     allocate(this%points(q**3))
     allocate(this%degen(q**3))
     do concurrent ( i = 1:q, j = 1:q, k = 1:q )
